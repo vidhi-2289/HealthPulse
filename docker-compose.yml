@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: healthpulse-backend
+    ports:
+      - "4000:4000"
+    environment:
+      - PORT=4000
+      - JWT_SECRET=change-this-in-production
+      - DATABASE_URL=file:./dev.db
+
+  demo-target-app:
+    build:
+      context: ./demo-target-app
+    container_name: healthpulse-demo-target
+    ports:
+      - "5001:5001"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: healthpulse-frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
