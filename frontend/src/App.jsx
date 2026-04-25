@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
+import AuthForm from "./components/AuthForm";
+import Navigation from "./components/Navigation";
+import DashboardOverview from "./components/DashboardOverview";
+import TargetManager from "./components/TargetManager";
+import LogsViewer from "./components/LogsViewer";
+import AlertsViewer from "./components/AlertsViewer";
+
 const API_BASE = "http://localhost:4000/api";
 
 const navItems = ["Dashboard", "Targets", "Logs", "Alerts"];
 
 const defaultTargetForm = {
   name: "",
-  url: "http://localhost:5001/health",
+  url: "http://demo-target-app:5001/health",
   method: "GET",
   intervalSec: 30,
   timeoutMs: 5000,
@@ -288,7 +295,7 @@ function App() {
   return (
     <main className="layout">
       <header className="topbar">
-        <div>
+        <div className="topbar-content">
           <h1>HealthPulse</h1>
           <p>Automated Application Health Monitoring & Alert System</p>
         </div>
@@ -296,399 +303,73 @@ function App() {
       </header>
 
       {!isAuthed && (
-        <section className="card auth-card">
-          <h2>{authMode === "login" ? "Login" : "Register"}</h2>
-          <form className="form" onSubmit={handleAuthSubmit}>
-            {authMode === "register" && (
-              <label>
-                Name
-                <input
-                  value={authForm.name}
-                  onChange={(e) => setAuthForm((f) => ({ ...f, name: e.target.value }))}
-                  required
-                />
-              </label>
-            )}
-            <label>
-              Email
-              <input
-                type="email"
-                value={authForm.email}
-                onChange={(e) => setAuthForm((f) => ({ ...f, email: e.target.value }))}
-                required
-              />
-            </label>
-            <label>
-              Password
-              <input
-                type="password"
-                value={authForm.password}
-                onChange={(e) => setAuthForm((f) => ({ ...f, password: e.target.value }))}
-                required
-              />
-            </label>
-            <button type="submit">{authMode === "login" ? "Sign In" : "Create Account"}</button>
-          </form>
-          <button
-            type="button"
-            className="text-button"
-            onClick={() => setAuthMode(authMode === "login" ? "register" : "login")}
-          >
-            {authMode === "login" ? "Need an account? Register" : "Already have an account? Login"}
-          </button>
-        </section>
+        <AuthForm
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          authForm={authForm}
+          setAuthForm={setAuthForm}
+          handleAuthSubmit={handleAuthSubmit}
+        />
       )}
 
       {isAuthed && (
         <>
-          <nav className="nav">
-            {navItems.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => setActiveTab(item)}
-                className={activeTab === item ? "active" : ""}
-              >
-                {item}
-              </button>
-            ))}
-            <button type="button" onClick={loadData}>
-              Refresh
-            </button>
-            <button type="button" onClick={seedDemoData}>
-              Seed Demo Data
-            </button>
-            <button type="button" onClick={handleLogout}>
-              Logout
-            </button>
-          </nav>
+          <Navigation
+            navItems={navItems}
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            loadData={loadData}
+            seedDemoData={seedDemoData}
+            handleLogout={handleLogout}
+          />
 
-          <p className="user-line">
-            Signed in as <strong>{user?.email || "..."}</strong>
-          </p>
+          <div key={activeTab} className="fade-slide-in">
+            {activeTab === "Dashboard" && <DashboardOverview summary={summary} />}
 
-          {activeTab === "Dashboard" && (
-            <section className="cards">
-              <article className="card">
-                <h2>Overview</h2>
-                <ul>
-                  <li>Total targets: {summary?.totalTargets ?? 0}</li>
-                  <li>Active targets: {summary?.activeTargets ?? 0}</li>
-                  <li>Total checks: {summary?.totalChecks ?? 0}</li>
-                  <li>Uptime: {summary?.uptimePercent ?? 0}%</li>
-                </ul>
-              </article>
-              <article className="card">
-                <h2>Monitor Endpoints</h2>
-                <ul>
-                  <li>Backend API: http://localhost:4000/api/health</li>
-                  <li>Demo app: http://localhost:5001/health</li>
-                  <li>Scheduler: every 60 seconds</li>
-                </ul>
-              </article>
-              <article className="card">
-                <h2>Latest Status by Target</h2>
-                {summary?.latestChecksByTarget?.length ? (
-                  <ul>
-                    {summary.latestChecksByTarget.map((row) => (
-                      <li key={row.targetId}>
-                        {row.targetName}:{" "}
-                        <span className={row.latestStatus === "UP" ? "up" : "down"}>
-                          {row.latestStatus}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>No targets yet.</p>
-                )}
-              </article>
-            </section>
-          )}
+            {activeTab === "Targets" && (
+              <TargetManager
+                targets={targets}
+                targetForm={targetForm}
+                setTargetForm={setTargetForm}
+                editingTargetId={editingTargetId}
+                setEditingTargetId={setEditingTargetId}
+                latestCheckByTarget={latestCheckByTarget}
+                handleTargetCreate={handleTargetCreate}
+                handleTargetAction={handleTargetAction}
+                setMessage={setMessage}
+                defaultTargetForm={defaultTargetForm}
+              />
+            )}
 
-          {activeTab === "Targets" && (
-            <section className="cards">
-              <article className="card">
-                <h2>Add Target</h2>
-                <form className="form" onSubmit={handleTargetCreate}>
-                  <label>
-                    Name
-                    <input
-                      value={targetForm.name}
-                      onChange={(e) => setTargetForm((f) => ({ ...f, name: e.target.value }))}
-                      required
-                    />
-                  </label>
-                  <label>
-                    URL
-                    <input
-                      value={targetForm.url}
-                      onChange={(e) => setTargetForm((f) => ({ ...f, url: e.target.value }))}
-                      required
-                    />
-                  </label>
-                  <label>
-                    Expected Status
-                    <input
-                      type="number"
-                      value={targetForm.expectedStatus}
-                      onChange={(e) =>
-                        setTargetForm((f) => ({ ...f, expectedStatus: Number(e.target.value) }))
-                      }
-                    />
-                  </label>
-                  <label>
-                    Timeout (ms)
-                    <input
-                      type="number"
-                      value={targetForm.timeoutMs}
-                      onChange={(e) =>
-                        setTargetForm((f) => ({ ...f, timeoutMs: Number(e.target.value) }))
-                      }
-                    />
-                  </label>
-                  <button type="submit">{editingTargetId ? "Update Target" : "Create Target"}</button>
-                  {editingTargetId && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setEditingTargetId(null);
-                        setTargetForm(defaultTargetForm);
-                        setMessage("Edit cancelled.");
-                      }}
-                    >
-                      Cancel Edit
-                    </button>
-                  )}
-                </form>
-              </article>
+            {activeTab === "Logs" && (
+              <LogsViewer
+                checks={checks}
+                targets={targets}
+                checkFilters={checkFilters}
+                setCheckFilters={setCheckFilters}
+                applyCheckFilters={applyCheckFilters}
+                downloadReport={downloadReport}
+              />
+            )}
 
-              <article className="card wide">
-                <h2>Existing Targets</h2>
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>URL</th>
-                        <th>Status</th>
-                        <th>Active</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {targets.map((target) => {
-                        const latest = latestCheckByTarget.get(target.id);
-                        return (
-                          <tr key={target.id}>
-                            <td>{target.name}</td>
-                            <td className="mono">{target.url}</td>
-                            <td>
-                              <span className={latest?.status === "UP" ? "up" : "down"}>
-                                {latest?.status || "NO_DATA"}
-                              </span>
-                            </td>
-                            <td>{target.isActive ? "Yes" : "No"}</td>
-                            <td className="actions">
-                              <button onClick={() => handleTargetAction(target.id, "run-now")}>Run now</button>
-                              <button
-                                onClick={() => {
-                                  setEditingTargetId(target.id);
-                                  setTargetForm({
-                                    name: target.name,
-                                    url: target.url,
-                                    method: target.method,
-                                    intervalSec: target.intervalSec,
-                                    timeoutMs: target.timeoutMs,
-                                    expectedStatus: target.expectedStatus,
-                                  });
-                                  setMessage(`Editing target "${target.name}"`);
-                                }}
-                              >
-                                Edit
-                              </button>
-                              <button onClick={() => handleTargetAction(target.id, "toggle")}>
-                                {target.isActive ? "Disable" : "Enable"}
-                              </button>
-                              <button className="danger" onClick={() => handleTargetAction(target.id, "delete")}>
-                                Delete
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                      {!targets.length && (
-                        <tr>
-                          <td colSpan="5">No targets yet.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </article>
-            </section>
-          )}
+            {activeTab === "Alerts" && (
+              <AlertsViewer
+                alerts={alerts}
+                targets={targets}
+                alertFilters={alertFilters}
+                setAlertFilters={setAlertFilters}
+                applyAlertFilters={applyAlertFilters}
+                downloadReport={downloadReport}
+              />
+            )}
+          </div>
 
-          {activeTab === "Logs" && (
-            <section className="card">
-              <h2>Health Check Logs (Latest 100)</h2>
-              <div className="filter-row">
-                <select
-                  value={checkFilters.targetId}
-                  onChange={(e) => setCheckFilters((f) => ({ ...f, targetId: e.target.value }))}
-                >
-                  <option value="">All Targets</option>
-                  {targets.map((target) => (
-                    <option key={target.id} value={target.id}>
-                      {target.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={checkFilters.status}
-                  onChange={(e) => setCheckFilters((f) => ({ ...f, status: e.target.value }))}
-                >
-                  <option value="">All Status</option>
-                  <option value="UP">UP</option>
-                  <option value="DOWN">DOWN</option>
-                </select>
-                <input
-                  type="datetime-local"
-                  value={checkFilters.from}
-                  onChange={(e) => setCheckFilters((f) => ({ ...f, from: e.target.value }))}
-                />
-                <input
-                  type="datetime-local"
-                  value={checkFilters.to}
-                  onChange={(e) => setCheckFilters((f) => ({ ...f, to: e.target.value }))}
-                />
-                <button type="button" onClick={applyCheckFilters}>
-                  Apply Filters
-                </button>
-                <button type="button" onClick={() => downloadReport("checks", "csv")}>
-                  Export CSV
-                </button>
-                <button type="button" onClick={() => downloadReport("checks", "json")}>
-                  Export JSON
-                </button>
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Target</th>
-                      <th>Status</th>
-                      <th>Code</th>
-                      <th>Latency (ms)</th>
-                      <th>Error</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {checks.map((check) => (
-                      <tr key={check.id}>
-                        <td>{new Date(check.checkedAt).toLocaleString()}</td>
-                        <td>{check.target?.name || check.targetId}</td>
-                        <td>
-                          <span className={check.status === "UP" ? "up" : "down"}>{check.status}</span>
-                        </td>
-                        <td>{check.statusCode ?? "-"}</td>
-                        <td>{check.responseTimeMs ?? "-"}</td>
-                        <td>{check.errorMessage || "-"}</td>
-                      </tr>
-                    ))}
-                    {!checks.length && (
-                      <tr>
-                        <td colSpan="6">No checks yet.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-
-          {activeTab === "Alerts" && (
-            <section className="card">
-              <h2>Alerts (Latest 100)</h2>
-              <div className="filter-row">
-                <select
-                  value={alertFilters.targetId}
-                  onChange={(e) => setAlertFilters((f) => ({ ...f, targetId: e.target.value }))}
-                >
-                  <option value="">All Targets</option>
-                  {targets.map((target) => (
-                    <option key={target.id} value={target.id}>
-                      {target.name}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={alertFilters.type}
-                  onChange={(e) => setAlertFilters((f) => ({ ...f, type: e.target.value }))}
-                >
-                  <option value="">All Types</option>
-                  <option value="DOWN">DOWN</option>
-                  <option value="RECOVERED">RECOVERED</option>
-                </select>
-                <input
-                  type="datetime-local"
-                  value={alertFilters.from}
-                  onChange={(e) => setAlertFilters((f) => ({ ...f, from: e.target.value }))}
-                />
-                <input
-                  type="datetime-local"
-                  value={alertFilters.to}
-                  onChange={(e) => setAlertFilters((f) => ({ ...f, to: e.target.value }))}
-                />
-                <button type="button" onClick={applyAlertFilters}>
-                  Apply Filters
-                </button>
-                <button type="button" onClick={() => downloadReport("alerts", "csv")}>
-                  Export CSV
-                </button>
-                <button type="button" onClick={() => downloadReport("alerts", "json")}>
-                  Export JSON
-                </button>
-              </div>
-              <div className="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Time</th>
-                      <th>Target</th>
-                      <th>Type</th>
-                      <th>Message</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {alerts.map((alert) => (
-                      <tr key={alert.id}>
-                        <td>{new Date(alert.triggeredAt).toLocaleString()}</td>
-                        <td>{alert.target?.name || "-"}</td>
-                        <td>{alert.type}</td>
-                        <td>{alert.message}</td>
-                      </tr>
-                    ))}
-                    {!alerts.length && (
-                      <tr>
-                        <td colSpan="4">No alerts yet.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
+          <div style={{ marginTop: '2rem' }}>
+            {loading && <div style={{ color: 'var(--color-text-dark)' }}>Loading data...</div>}
+            {message && <div style={{ color: 'var(--color-status-up)', fontWeight: 600, padding: '1rem', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '2px', borderLeft: '4px solid var(--color-status-up)' }}>{message}</div>}
+            {error && <div style={{ color: 'var(--color-status-down)', fontWeight: 600, padding: '1rem', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '2px', borderLeft: '4px solid var(--color-status-down)' }}>{error}</div>}
+          </div>
         </>
-      )}
-
-      {(error || message || loading) && (
-        <section className="status-line">
-          {loading && <span>Loading data...</span>}
-          {message && <span className="success">{message}</span>}
-          {error && <span className="error">{error}</span>}
-        </section>
       )}
     </main>
   );
